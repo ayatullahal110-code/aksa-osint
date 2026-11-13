@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXUS-OSINT | Global Intelligence Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#08090D;--s1:#11131A;--s2:#171A23;--line:#232735;--tx:#E6E8EE;--mut:#8A90A2;--ac:#55D6E8;--vi:#8B7CF6;--ok:#58D68D;--wa:#E8B455;--er:#E86A6A;color-scheme:dark}
+:root[data-theme=graphite]{--bg:#0E0F12;--s1:#17191E;--s2:#1E2128;--line:#2B2F38}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 Inter,system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:flex;height:100%}
+aside{width:232px;flex:none;background:var(--s1);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 10px;overflow:auto;transition:transform .2s}
+.brand{padding:4px 10px 16px}.brand b{font-size:16px;letter-spacing:.04em}.brand small{display:block;color:var(--mut);font-size:11px}
+.brand span{color:var(--ac)}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:8px;color:var(--mut);cursor:pointer}
+nav button:hover{background:var(--s2);color:var(--tx)}
+nav button.on{background:var(--s2);color:var(--ac)}
+.credit{margin-top:auto;padding:12px 10px 0;color:var(--mut);font-size:12px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+header{display:flex;gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);background:rgba(17,19,26,.7);backdrop-filter:blur(10px)}
+header input{flex:1;max-width:520px}
+#views{flex:1;overflow:auto;padding:22px}
+.view{display:none;max-width:1100px;margin:0 auto}.view.on{display:block}
+h1{font-size:20px;margin:0 0 4px;font-weight:600}h2{font-size:15px;margin:0 0 10px;font-weight:600}
+.sub{color:var(--mut);margin:0 0 18px;max-width:70ch}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+textarea{width:100%;min-height:80px;resize:vertical}
+.grow{flex:1}
+.btn{background:var(--ac);color:#06242A;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn.g{background:var(--s2);color:var(--tx);border:1px solid var(--line);font-weight:500}
+.btn:disabled{opacity:.5;cursor:wait}
+.badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid currentColor}
+.b-verified{color:var(--ok)}.b-estimated{color:var(--wa)}.b-sample{color:var(--vi)}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;word-break:break-word}
+td:first-child{color:var(--mut);width:30%}
+.stat b{display:block;font-size:26px;font-weight:600}.stat span{color:var(--mut)}
+.err{color:var(--er);padding:10px;border:1px solid var(--er);border-radius:8px}
+.empty,.load{color:var(--mut);padding:18px;text-align:center;border:1px dashed var(--line);border-radius:8px}
+.note{color:var(--mut);font-size:12px}
+.warn{border-left:3px solid var(--wa);padding:8px 12px;background:var(--s2);border-radius:6px;margin-bottom:14px;font-size:13px}
+.card img,.card video,#gMedia img,#gMedia video,#gMedia canvas{width:100%;border-radius:8px;background:#000;max-height:360px;object-fit:contain}
+.card img{height:150px;object-fit:cover}
+#map{height:480px;border-radius:12px;border:1px solid var(--line)}
+a{color:var(--ac)}
+.drop{border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--mut);cursor:pointer}
+.drop.over{border-color:var(--ac);color:var(--ac)}
+#toasts{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:9999}
+.toast{background:var(--s2);border:1px solid var(--line);padding:10px 14px;border-radius:8px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9000;padding:16px}
+#modal.on{display:flex}
+#modal .box{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:18px;max-width:640px;width:100%;max-height:80vh;overflow:auto}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;max-height:420px;white-space:pre-wrap}
+#menu{display:none}
+@media(max-width:900px){aside{position:fixed;inset:0 auto 0 0;z-index:50;transform:translateX(-100%)}aside.open{transform:none}#menu{display:inline-block}#views{padding:14px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside id="side">
+  <div class="brand"><b>NEXUS<span>-</span>OSINT</b><small>Global Intelligence</small></div>
+  <nav id="nav"></nav>
+  <div class="credit">Created by Aksaa<br>v1.0.0</div>
+</aside>
+<div class="main">
+<header>
+  <button class="btn g" id="menu" data-act="menu" aria-label="Menu">Menu</button>
+  <input id="gs" class="grow" placeholder="Search an IP, domain, email, phone or username" aria-label="Global search">
+  <button class="btn" data-act="gsearch">Search</button>
+  <button class="btn g" data-act="bell">Notifications <span id="bellN"></span></button>
+</header>
+<main id="views">
+
+<section class="view" id="v-dashboard">
+  <h1>Dashboard</h1>
+  <p class="sub">Everything on this screen comes from your own local activity. Items are labeled Verified (retrieved from a public source), Estimated (inference or approximation) or Sample (demonstration data).</p>
+  <div class="grid" id="stats"></div>
+  <div class="grid" style="margin-top:16px">
+    <div class="panel"><h2>Recent searches</h2><div id="dRecent"></div></div>
+    <div class="panel"><h2>Recent findings</h2><div id="dFind"></div></div>
+    <div class="panel"><h2>API connection status</h2><div id="dApi"><div class="empty">Not checked yet.</div></div><div class="row" style="margin-top:10px"><button class="btn g" data-act="apicheck">Check connections</button></div></div>
+  </div>
+  <div class="panel"><h2>Modules</h2><div class="row" id="dMods"></div></div>
+</section>
+
+<section class="view" id="v-geoint">
+  <h1>Visual GeoINT</h1>
+  <p class="sub">Upload a photo or video, then record the public geographic clues you can see. Estimates are your analyst hypotheses.</p>
+  <div class="warn">No vision API is configured, so no automatic analysis runs. This module does not run facial recognition, does not identify people, and does not read EXIF or GPS metadata. Do not use it to locate private homes, schools or workplaces.</div>
+  <div class="panel">
+    <label class="drop" id="drop" for="gFile">Drop a JPG, PNG, WEBP, MP4 or WEBM file here, or click to choose<input id="gFile" type="file" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm" hidden></label>
+    <div id="gMedia" style="margin-top:12px"><div class="empty">No media loaded. Files stay in your browser and are not stored.</div></div>
+    <div class="row" id="gVidTools" style="margin-top:8px;display:none"><button class="btn g" data-act="capture">Use current frame</button><span class="note">Pause the video where the clues are clearest, then capture.</span></div>
+  </div>
+  <div class="panel"><h2>Analyst hypothesis</h2>
+    <div class="row"><input id="gCountry" placeholder="Candidate country"><input id="gCity" class="grow" placeholder="City or region"><input id="gLand" class="grow" placeholder="Public landmark (optional)"></div>
+    <div class="row" style="margin:10px 0" id="gClues"></div>
+    <textarea id="gNotes" placeholder="Evidence and reasoning. State what you could not confirm."></textarea>
+    <div class="row" style="margin-top:10px"><select id="gConf"><option>Low</option><option>Medium</option><option>High</option></select>
+    <button class="btn" data-act="gsave">Save hypothesis</button><button class="btn g" data-act="gmap">Locate on map</button></div>
+    <p class="note">Saved hypotheses are marked Estimated. Nothing here is verified.</p>
+  </div>
+</section>
+
+<section class="view" id="v-cctv">
+  <h1>Global CCTV Intelligence</h1>
+  <p class="sub">Only official open-data camera sources. Nothing is scanned or bypassed. Live records are snapshots fetched from the provider now; sample records are directory links, not verified feeds.</p>
+  <div class="panel"><div class="row">
+    <input id="cQ" class="grow" placeholder="Search country, city or camera name">
+    <select id="cCat"><option value="">All categories</option><option>Traffic</option><option>Weather</option><option>Tourism</option><option>Nature</option><option>Transportation</option><option>Public infrastructure</option></select>
+    <label class="note"><input type="checkbox" id="cFav"> Favorites only</label>
+    <button class="btn" data-act="cload">Load Singapore snapshots</button><button class="btn g" data-act="cmap">Plot on map</button>
+  </div></div>
+  <div class="grid" id="cList"></div>
+  <div class="row" style="margin-top:12px"><button class="btn g" data-act="cmore">Show more</button></div>
+</section>
+
+<section class="view" id="v-map">
+  <h1>Global Intelligence Map</h1>
+  <p class="sub">Markers from IP lookups are approximate regional areas. Search a country, city or public landmark.</p>
+  <div class="row" style="margin-bottom:10px"><input id="mQ" class="grow" placeholder="Country, city or landmark"><button class="btn" data-act="msearch">Find</button><button class="btn g" data-act="mclear">Clear markers</button></div>
+  <div id="map"></div>
+</section>
+
+<section class="view" id="v-workspace">
+  <h1>Investigation workspace</h1>
+  <p class="sub">Sessions, findings and notes are saved in this browser only.</p>
+  <div class="panel"><div class="row"><input id="wName" class="grow" placeholder="New investigation name"><button class="btn" data-act="wnew">Create</button></div></div>
+  <div id="wList"></div>
+</section>
+
+<section class="view" id="v-reports">
+  <h1>Reports</h1>
+  <p class="sub">Every report separates Verified, Estimated and Sample entries and lists source URLs.</p>
+  <div class="panel"><div class="row"><select id="rInv" class="grow"></select>
+    <button class="btn" data-act="rtxt">TXT</button><button class="btn" data-act="rjson">JSON</button><button class="btn" data-act="rhtml">Printable HTML</button><button class="btn g" data-act="rcopy">Copy TXT</button></div></div>
+  <pre id="rPrev">Select an investigation to preview its report.</pre>
+</section>
+
+<section class="view" id="v-settings">
+  <h1>Settings</h1>
+  <div class="panel"><h2>Appearance</h2><select id="sTheme"><option value="dark">Deep black</option><option value="graphite">Graphite</option></select></div>
+  <div class="panel"><h2>API configuration</h2>
+    <div class="row"><input id="sVision" class="grow" placeholder="Vision API endpoint (optional)"><button class="btn" data-act="ssave">Save</button></div>
+    <p class="warn" style="margin-top:12px">Anything stored in frontend code or localStorage can be read by anyone with access to this browser or page. Never put secret keys here. Use a backend proxy that holds the key and forwards requests whenever a provider requires credentials. No vision analysis is wired up in this version.</p>
+    <p class="note">Data sources used: ipwho.is, rdap.org, dns.google (DNS over HTTPS), crt.sh, api.github.com, reddit.com, api.data.gov.sg, nominatim.openstreetmap.org.</p></div>
+  <div class="panel"><h2>Local data</h2><div class="row"><button class="btn g" data-act="clrhist">Clear search history</button><button class="btn g" data-act="clrall">Delete all local data</button></div></div>
+  <div class="panel"><h2>About</h2><p>NEXUS-OSINT 1.0.0. Developer: Aksaa. Public-source intelligence only; approximate IP geolocation is never a physical address.</p></div>
+</section>
+
+</main></div></div>
+<div id="toasts" aria-live="polite"></div>
+<div id="modal"><div class="box"><div class="row"><h2 class="grow" id="mTitle"></h2><button class="btn g" data-act="mclose">Close</button></div><div id="mBody"></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store={get(k,d){try{return JSON.parse(localStorage.getItem("nx_"+k))??d}catch{return d}},set(k,v){try{localStorage.setItem("nx_"+k,JSON.stringify(v))}catch{toast("Local storage is unavailable")}}};
+const uid=()=>Math.random().toString(36).slice(2,9);
+const now=()=>new Date().toISOString();
+let invs=store.get("inv",[]),hist=store.get("hist",[]),favs=store.get("favs",[]),active=store.get("active",null),notes=[];
+
+function toast(m){notes.unshift({t:now(),m});$("#bellN").textContent=notes.length;const d=document.createElement("div");d.className="toast";d.textContent=m;$("#toasts").append(d);setTimeout(()=>d.remove(),3200)}
+function modal(t,h){$("#mTitle").textContent=t;$("#mBody").innerHTML=h;$("#modal").classList.add("on")}
+async function getJSON(u,ms=10000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error("HTTP "+r.status+" from "+new URL(u).host);return await r.json()}catch(e){if(e.name==="AbortError")throw new Error("Request to "+new URL(u).host+" timed out");throw e}finally{clearTimeout(t)}}
+const doh=(n,t)=>getJSON("https://dns.google/resolve?name="+encodeURIComponent(n)+"&type="+t).then(d=>(d.Answer||[]).filter(a=>a.type!==5||t==="CNAME").map(a=>a.data));
+function kv(o){return "<table>"+Object.entries(o).filter(([,v])=>v!==undefined&&v!==null&&v!==""&&!(Array.isArray(v)&&!v.length)).map(([k,v])=>"<tr><td>"+esc(k)+"</td><td>"+(Array.isArray(v)?v.map(esc).join("<br>"):esc(v))+"</td></tr>").join("")+"</table>"}
+const badge=s=>'<span class="badge b-'+s+'">'+({verified:"Verified",estimated:"Estimated",sample:"Sample"}[s])+"</span>";
+
+/* state helpers */
+function log(mod,q){hist.unshift({t:now(),mod,q});hist=hist.slice(0,100);store.set("hist",hist)}
+function activeInv(){let i=invs.find(x=>x.id===active);if(!i){i={id:uid(),name:"Session "+new Date().toLocaleString(),created:now(),notes:"",findings:[]};invs.unshift(i);active=i.id;store.set("active",active)}return i}
+function addFinding(f){const i=activeInv();i.findings.unshift({id:uid(),t:now(),...f});store.set("inv",invs);toast("Saved to "+i.name)}
+
+/* tools */
+const V4=/^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+const isV6=s=>{if(!/^[0-9a-f:.]+$/i.test(s)||!s.includes(":"))return false;try{new URL("http://["+s+"]/");return true}catch{return false}};
+const DOM=/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+const DISP=["mailinator.com","guerrillamail.com","10minutemail.com","tempmail.com","yopmail.com","trashmail.com","sharklasers.com","getnada.com","throwawaymail.com","dispostable.com"];
+const CC={1:"United States / Canada (NANP)",7:"Russia / Kazakhstan",20:"Egypt",27:"South Africa",31:"Netherlands",33:"France",34:"Spain",39:"Italy",44:"United Kingdom",49:"Germany",52:"Mexico",55:"Brazil",60:"Malaysia",61:"Australia",62:"Indonesia",63:"Philippines",64:"New Zealand",65:"Singapore",66:"Thailand",81:"Japan",82:"South Korea",84:"Vietnam",86:"China",91:"India",92:"Pakistan",234:"Nigeria",852:"Hong Kong",886:"Taiwan",966:"Saudi Arabia",971:"United Arab Emirates"};
+const ev=(r,a)=>(r.events||[]).find(e=>e.eventAction===a)?.eventDate;
+
+const tools={
+ip:{title:"IP Intelligence",desc:"Geolocation (approximate), ASN, ISP, RDAP and reverse DNS for a public IPv4 or IPv6 address.",ph:"8.8.8.8",async run(v){
+  const v4=V4.test(v);if(!v4&&!isV6(v))throw new Error("Not a valid IPv4 or IPv6 address.");
+  const [g,r,p]=await Promise.allSettled([getJSON("https://ipwho.is/"+v),getJSON("https://rdap.org/ip/"+v),v4?doh(v.split(".").reverse().join(".")+".in-addr.arpa","PTR"):Promise.resolve(null)]);
+  if(g.status!=="fulfilled"||g.value.success===false)throw new Error(g.value?.message||g.reason?.message||"Geolocation lookup failed.");
+  const x=g.value,c=x.connection||{},d=r.value||{};
+  return{status:"estimated",summary:v+" - "+(c.org||c.isp||"unknown network"),sources:["https://ipwho.is/"+v,"https://rdap.org/ip/"+v],geo:x.latitude!=null?[x.latitude,x.longitude,v,"ip"]:null,
+  rows:{"IP":x.ip,"Type":x.type,"Country (approx.)":x.country,"Region (approx.)":x.region,"City (approx.)":x.city,"ASN":c.asn?"AS"+c.asn:"","ISP":c.isp,"Organization":c.org,"Reverse DNS":p.status==="fulfilled"?p.value:(v4?"lookup failed":"not supported for IPv6 here"),"RDAP name":d.name,"RDAP range":d.startAddress?d.startAddress+" - "+d.endAddress:"","RDAP country":d.country,"RDAP lookup":r.status==="fulfilled"?"ok":"unavailable"},
+  note:"Location is approximate and refers to the network, not a physical address."}}},
+domain:{title:"Domain Intelligence",desc:"DNS records, RDAP registration data, certificate transparency names and reachability.",ph:"example.com",async run(v){
+  v=v.toLowerCase().replace(/^https?:\/\//,"").replace(/\/.*$/,"");if(!DOM.test(v))throw new Error("Not a valid domain name.");
+  const T=["A","AAAA","MX","NS","TXT","CNAME"];
+  const [rd,ct,...dn]=await Promise.allSettled([getJSON("https://rdap.org/domain/"+v),getJSON("https://crt.sh/?q="+encodeURIComponent(v)+"&output=json",15000),...T.map(t=>doh(v,t))]);
+  const rows={};T.forEach((t,i)=>rows[t+" records"]=dn[i].status==="fulfilled"?(dn[i].value.length?dn[i].value:"none"):"lookup failed");
+  if(rd.status==="fulfilled"){const r=rd.value,reg=(r.entities||[]).find(e=>(e.roles||[]).includes("registrar")),fn=reg?.vcardArray?.[1]?.find(a=>a[0]==="fn")?.[3];
+    Object.assign(rows,{"Registrar":fn,"Registered":ev(r,"registration"),"Expires":ev(r,"expiration"),"Last changed":ev(r,"last changed"),"RDAP status":r.status,"RDAP nameservers":(r.nameservers||[]).map(n=>n.ldhName)})}else rows["RDAP"]="unavailable: "+rd.reason.message;
+  rows["Certificate transparency"]=ct.status==="fulfilled"?[...new Set(ct.value.flatMap(c=>c.name_value.split("\n")))].slice(0,25):"crt.sh unavailable: "+ct.reason.message;
+  const t0=performance.now();try{await fetch("https://"+v,{mode:"no-cors",signal:AbortSignal.timeout(8000)});rows["HTTPS reachability"]="Responded in "+Math.round(performance.now()-t0)+" ms (headers are not readable from a browser)"}catch{rows["HTTPS reachability"]="No response"}
+  return{status:"verified",summary:v,sources:["https://rdap.org/domain/"+v,"https://dns.google/resolve?name="+v,"https://crt.sh/?q="+v],rows}}},
+email:{title:"Email Intelligence",desc:"Format, domain, MX and disposable-domain checks. No mailbox is contacted.",ph:"name@example.com",async run(v){
+  if(!/^[^\s@]{1,64}@[^\s@]+$/.test(v))throw new Error("Not a valid email format.");
+  const d=v.split("@")[1].toLowerCase();if(!DOM.test(d))throw new Error("The domain part is not valid.");
+  const [mx,a]=await Promise.all([doh(d,"MX"),doh(d,"A")]);
+  return{status:"verified",summary:v,sources:["https://dns.google/resolve?name="+d+"&type=MX"],rows:{"Format":"valid","Domain":d,"MX records":mx.length?mx:"none","A records":a.length?a:"none","Can receive mail (DNS)":mx.length?"yes, MX present":(a.length?"possibly, A fallback only":"no"),"Disposable domain":DISP.includes(d)?"yes (known list)":"not in built-in list of "+DISP.length}}}},
+phone:{title:"Phone Intelligence",desc:"Format validation, normalization and country calling code. No subscriber data.",ph:"+62 812 3456 7890",async run(v){
+  let n=v.replace(/[\s().-]/g,"");if(n.startsWith("00"))n="+"+n.slice(2);
+  if(!n.startsWith("+"))throw new Error("Enter the number in international format, starting with + and the country code.");
+  if(!/^\+[1-9]\d{6,14}$/.test(n))throw new Error("Invalid length or characters. E.164 allows 7 to 15 digits after +.");
+  const k=[3,2,1].map(l=>n.slice(1,1+l)).find(c=>CC[c]);
+  return{status:"verified",summary:n,sources:[],rows:{"Normalized (E.164)":n,"Calling code":k?"+"+k:"not in built-in table","Country":k?CC[k]:"unknown","National digits":k?n.slice(1+k.length):"","Digit count":n.length-1},note:"Format check only. It does not show whether the number is in service or who holds it."}}},
+username:{title:"Username Intelligence",desc:"Checks public profile endpoints where browsers can read them. Other platforms are listed as links to check manually.",ph:"octocat",async run(v){
+  if(!/^[A-Za-z0-9._-]{2,39}$/.test(v))throw new Error("Use 2 to 39 letters, numbers, dots, dashes or underscores.");
+  const chk=async(name,url,pub)=>{try{const r=await fetch(url);return[name,r.status===200?"Found "+pub:r.status===404?"Not found":"Unclear (HTTP "+r.status+")"]}catch{return[name,"Could not check from browser"]}};
+  const res=await Promise.all([chk("GitHub","https://api.github.com/users/"+v,"https://github.com/"+v),chk("Reddit","https://www.reddit.com/user/"+v+"/about.json","https://www.reddit.com/user/"+v)]);
+  const rows=Object.fromEntries(res);
+  const m={Instagram:"https://www.instagram.com/"+v,TikTok:"https://www.tiktok.com/@"+v,YouTube:"https://www.youtube.com/@"+v,X:"https://x.com/"+v};
+  for(const k in m)rows[k]="Unchecked, open manually: "+m[k];
+  return{status:"verified",summary:v,sources:["https://github.com/"+v,"https://www.reddit.com/user/"+v,...Object.values(m)],rows,note:"A matching name on another platform does not mean it is the same person."}}}
+};
+const lastRes={};
+function renderRes(id,r){
+  return '<div class="panel"><div class="row"><h2 class="grow">'+esc(r.summary)+"</h2>"+badge(r.status)+"</div>"+kv(r.rows)+(r.note?'<p class="note">'+esc(r.note)+"</p>":"")+
+  '<div class="row" style="margin-top:10px"><button class="btn" data-act="save" data-id="'+id+'">Save to investigation</button><button class="btn g" data-act="copy" data-id="'+id+'">Copy</button>'+(r.geo?'<button class="btn g" data-act="plot" data-id="'+id+'">Show on map</button>':"")+"</div></div>"}
+async function exec(id,val){
+  const inp=$("#in-"+id),out=$("#out-"+id),b=$("#go-"+id);if(val!=null)inp.value=val;
+  const v=inp.value.trim();if(!v){out.innerHTML='<div class="empty">Enter a value to start.</div>';return}
+  b.disabled=true;out.innerHTML='<div class="load">Looking up...</div>';
+  try{const r=await tools[id].run(v);lastRes[id]=r;log(id,v);out.innerHTML=renderRes(id,r);if(r.geo)mark(...r.geo)}catch(e){out.innerHTML='<div class="err">'+esc(e.message)+"</div>"}finally{b.disabled=false}}
+
+/* views and navigation */
+const NAV=[["dashboard","Dashboard"],["geoint","Visual GeoINT"],["cctv","CCTV Explorer"],["ip","IP Intelligence"],["domain","Domain Intelligence"],["username","Username Intelligence"],["email","Email Intelligence"],["phone","Phone Intelligence"],["map","Intelligence Map"],["workspace","Workspace"],["reports","Reports"],["settings","Settings"]];
+$("#nav").innerHTML=NAV.map(([k,l])=>'<button data-act="nav" data-v="'+k+'" id="n-'+k+'">'+l+"</button>").join("");
+$("#views").insertAdjacentHTML("afterbegin",Object.entries(tools).map(([k,t])=>'<section class="view" id="v-'+k+'"><h1>'+t.title+'</h1><p class="sub">'+t.desc+'</p><div class="panel"><div class="row"><input id="in-'+k+'" class="grow" placeholder="'+esc(t.ph)+'" autocomplete="off"><button class="btn" id="go-'+k+'" data-act="run" data-id="'+k+'">Run</button></div></div><div id="out-'+k+'"><div class="empty">Results appear here.</div></div></section>').join(""));
+function show(v){document.querySelectorAll(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#side").classList.remove("open");
+  if(v==="map")initMap();if(v==="dashboard")drawDash();if(v==="workspace")drawWs();if(v==="reports")drawRep();if(v==="cctv")drawCam();$("#views").scrollTop=0}
+
+/* dashboard */
+function drawDash(){
+  const f=invs.flatMap(i=>i.findings);
+  $("#stats").innerHTML=[["Investigations",invs.length],["Searches",hist.length],["Saved findings",f.length],["Favorite cameras",favs.length]].map(([l,n])=>'<div class="panel stat"><b>'+n+"</b><span>"+l+"</span></div>").join("");
+  $("#dRecent").innerHTML=hist.length?hist.slice(0,8).map(h=>'<div class="row"><span class="badge">'+h.mod+'</span><span class="grow">'+esc(h.q)+'</span><button class="btn g" data-act="rerun" data-id="'+h.mod+'" data-q="'+esc(h.q)+'">Run</button></div>').join(""):'<div class="empty">No searches yet. Use the search bar above.</div>';
+  $("#dFind").innerHTML=f.length?f.slice(0,6).sort((a,b)=>b.t.localeCompare(a.t)).map(x=>'<div class="row"><span class="grow">'+esc(x.summary)+"</span>"+badge(x.status)+"</div>").join(""):'<div class="empty">No findings saved yet.</div>';
+  $("#dMods").innerHTML=NAV.slice(1,9).map(([k,l])=>'<button class="btn g" data-act="nav" data-v="'+k+'">'+l+"</button>").join("")}
+async function apiCheck(){
+  const T=[["ipwho.is","https://ipwho.is/8.8.8.8"],["dns.google","https://dns.google/resolve?name=example.com&type=A"],["rdap.org","https://rdap.org/domain/example.com"],["GitHub API","https://api.github.com/zen"],["data.gov.sg","https://api.data.gov.sg/v1/transport/traffic-images"],["Nominatim","https://nominatim.openstreetmap.org/search?format=json&q=paris&limit=1"]];
+  $("#dApi").innerHTML='<div class="load">Checking...</div>';
+  const r=await Promise.all(T.map(async([n,u])=>{try{const c=await fetch(u,{signal:AbortSignal.timeout(8000)});return[n,c.ok]}catch{return[n,false]}}));
+  $("#dApi").innerHTML=r.map(([n,ok])=>'<div class="row"><span class="grow">'+n+'</span><span class="badge '+(ok?"b-verified":"b-estimated")+'">'+(ok?"Reachable":"Unreachable")+"</span></div>").join("")}
+
+/* map */
+let map,layer,pins=[];
+const COL={ip:"#55D6E8",cctv:"#8B7CF6",geoint:"#E8B455",search:"#58D68D"};
+function drawPin(p){const [lat,lng,l,k]=p,c=COL[k]||"#fff";(k==="ip"?L.circle([lat,lng],{radius:50000,color:c,weight:1,dashArray:"4"}):L.circleMarker([lat,lng],{radius:6,color:c})).bindPopup(esc(l)+(k==="ip"?"<br>Approximate area":"")).addTo(layer)}
+function mark(lat,lng,l,k){pins.push([lat,lng,l,k]);if(map){drawPin(pins.at(-1))}}
+function initMap(){if(!window.L){toast("Map library could not load. Check your connection.");return}
+  if(!map){map=L.map("map",{worldCopyJump:true}).setView([20,0],2);L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"&copy; OpenStreetMap contributors"}).addTo(map);layer=L.layerGroup().addTo(map);pins.forEach(drawPin)}
+  setTimeout(()=>map.invalidateSize(),60)}
+async function geocode(q){const r=await getJSON("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q));if(!r.length)throw new Error("No place found for \""+q+"\".");return{lat:+r[0].lat,lng:+r[0].lon,name:r[0].display_name}}
+
+/* CCTV */
+const SAMPLES=[
+ {id:"S1",name:"NYC DOT traffic cameras",country:"United States",city:"New York",cat:"Traffic",provider:"NYC DOT",url:"https://webcams.nyctmc.org"},
+ {id:"S2",name:"Caltrans CCTV map",country:"United States",city:"California",cat:"Traffic",provider:"Caltrans",url:"https://cwwp2.dot.ca.gov/vm/iframemap.htm"},
+ {id:"S3",name:"National Park Service webcams",country:"United States",city:"Various",cat:"Nature",provider:"NPS",url:"https://www.nps.gov/subjects/webcams/index.htm"},
+ {id:"S4",name:"Traffic England cameras",country:"United Kingdom",city:"Various",cat:"Traffic",provider:"National Highways",url:"https://www.trafficengland.com/"}];
+let cams=[],camLimit=24;
+async function loadCams(){
+  toast("Fetching Singapore LTA snapshots...");
+  try{const d=await getJSON("https://api.data.gov.sg/v1/transport/traffic-images",15000),it=d.items&&d.items[0];if(!it)throw new Error("Provider returned no data.");
+    cams=it.cameras.map(c=>({id:"SG-"+c.camera_id,name:"Traffic camera "+c.camera_id,country:"Singapore",city:"Singapore",cat:"Traffic",provider:"LTA via data.gov.sg",ts:c.timestamp,img:c.image,url:"https://data.gov.sg",lat:c.location.latitude,lng:c.location.longitude,live:true}));
+    log("cctv","Singapore snapshots");toast(cams.length+" cameras loaded");drawCam()}catch(e){toast("CCTV load failed: "+e.message)}}
+function drawCam(){
+  const q=$("#cQ").value.toLowerCase(),cat=$("#cCat").value,fo=$("#cFav").checked;
+  const all=[...cams,...SAMPLES].filter(c=>(!q||(c.name+c.country+c.city).toLowerCase().includes(q))&&(!cat||c.cat===cat)&&(!fo||favs.includes(c.id)));
+  $("#cList").innerHTML=all.length?all.slice(0,camLimit).map(c=>'<div class="panel card">'+(c.img?'<img loading="lazy" src="'+esc(c.img)+'" alt="'+esc(c.name)+'">':"")+'<div class="row" style="margin-top:8px"><b class="grow">'+esc(c.name)+"</b>"+badge(c.live?"verified":"sample")+"</div>"+kv({Country:c.country,City:c.city,Category:c.cat,Provider:c.provider,Status:c.live?"Snapshot retrieved this session":"Directory link, availability not verified","Last updated":c.ts||"not provided"})+'<div class="row" style="margin-top:8px"><a class="btn g" href="'+esc(c.url)+'" target="_blank" rel="noopener noreferrer">Official source</a><button class="btn g" data-act="fav" data-id="'+c.id+'">'+(favs.includes(c.id)?"Remove favorite":"Favorite")+"</button></div></div>").join(""):'<div class="empty">No cameras match. Clear the filters or load a live source.</div>'}
+
+/* geoint */
+let gUrl=null;
+const CLUES=["Signage language","Driving side","Vegetation","Architecture","Terrain","Climate","Utility poles","License plate style"];
+$("#gClues").innerHTML=CLUES.map(c=>'<label class="note"><input type="checkbox" value="'+c+'"> '+c+"</label>").join("");
+function loadMedia(f){
+  const ok=/\.(jpe?g|png|webp|mp4|webm)$/i.test(f.name)&&/^(image|video)\//.test(f.type);
+  if(!ok)return toast("Unsupported file. Use JPG, PNG, WEBP, MP4 or WEBM.");
+  if(f.size>500*1024*1024)return toast("File is larger than 500 MB.");
+  if(gUrl)URL.revokeObjectURL(gUrl);gUrl=URL.createObjectURL(f);const vid=f.type.startsWith("video");
+  $("#gMedia").innerHTML=vid?'<video id="gVid" controls src="'+gUrl+'"></video>':'<img alt="Uploaded media preview" src="'+gUrl+'">';
+  $("#gVidTools").style.display=vid?"flex":"none";toast("Loaded "+f.name)}
+const drop=$("#drop");
+["dragover","dragenter"].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)loadMedia(f)});
+$("#gFile").addEventListener("change",e=>{if(e.target.files[0])loadMedia(e.target.files[0])});
+function gData(){return{country:$("#gCountry").value.trim(),city:$("#gCity").value.trim(),land:$("#gLand").value.trim(),clues:[...document.querySelectorAll("#gClues input:checked")].map(x=>x.value),notes:$("#gNotes").value.trim(),conf:$("#gConf").value}}
+
+/* workspace and reports */
+function drawWs(){
+  $("#wList").innerHTML=invs.length?invs.map(i=>'<div class="panel"><div class="row"><h2 class="grow">'+esc(i.name)+(i.id===active?" (active)":"")+'</h2><button class="btn g" data-act="wact" data-id="'+i.id+'">Make active</button><button class="btn g" data-act="wexp" data-id="'+i.id+'">Export JSON</button><button class="btn g" data-act="wdel" data-id="'+i.id+'">Delete</button></div><textarea data-act-note="'+i.id+'" placeholder="Notes">'+esc(i.notes)+"</textarea>"+(i.findings.length?i.findings.map(f=>'<div class="row"><span class="badge">'+f.module+'</span><span class="grow">'+esc(f.summary)+"</span>"+badge(f.status)+'<button class="btn g" data-act="fdel" data-id="'+i.id+'" data-f="'+f.id+'">Remove</button></div>').join(""):'<div class="empty">No findings yet. Run a module and choose Save to investigation.</div>')+"</div>").join(""):'<div class="empty">No investigations. Create one above or save a result to start one automatically.</div>'}
+function drawRep(){$("#rInv").innerHTML=invs.length?invs.map(i=>'<option value="'+i.id+'">'+esc(i.name)+"</option>").join(""):'<option value="">No investigations</option>'}
+const LBL={verified:"VERIFIED (retrieved from a public source)",estimated:"ESTIMATED (approximation or analyst hypothesis)",sample:"SAMPLE (demonstration data)"};
+function repTXT(i){let s="NEXUS-OSINT REPORT\n"+i.name+"\nCreated: "+i.created+"\nGenerated: "+now()+"\n\nNOTES\n"+(i.notes||"(none)")+"\n";
+  for(const st of ["verified","estimated","sample"]){const l=i.findings.filter(f=>f.status===st);s+="\n== "+LBL[st]+" ==\n";if(!l.length)s+="(none)\n";l.forEach(f=>{s+="\n["+f.t+"] "+f.module.toUpperCase()+": "+f.summary+"\n"+Object.entries(f.rows||{}).map(([k,v])=>"  "+k+": "+[].concat(v).join("; ")).join("\n")+(f.sources?.length?"\n  Sources: "+f.sources.join(", "):"")+"\n"})}
+  s+="\nSEARCH HISTORY\n"+hist.slice(0,30).map(h=>h.t+" "+h.mod+" "+h.q).join("\n")+"\n";return s}
+function repHTML(i){const sec=st=>{const l=i.findings.filter(f=>f.status===st);return"<h2>"+LBL[st]+"</h2>"+(l.length?l.map(f=>"<h3>"+esc(f.summary)+" <small>"+esc(f.module)+" / "+esc(f.t)+"</small></h3>"+kv(f.rows||{})+(f.sources?.length?"<p>"+f.sources.map(u=>'<a href="'+esc(u)+'">'+esc(u)+"</a>").join("<br>")+"</p>":"")).join(""):"<p>None</p>")};
+  return'<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(i.name)+'</title><style>body{font:14px/1.5 sans-serif;max-width:800px;margin:30px auto;padding:0 16px}td{border-bottom:1px solid #ddd;padding:4px 8px;vertical-align:top}td:first-child{color:#666;width:30%}</style></head><body><h1>NEXUS-OSINT report</h1><p><b>'+esc(i.name)+"</b><br>Generated "+now()+"</p><h2>Notes</h2><p>"+esc(i.notes||"None")+"</p>"+sec("verified")+sec("estimated")+sec("sample")+'<script>window.onload=()=>window.print()<\/script></body></html>'}
+function dl(name,mime,txt){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:mime}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const pickInv=()=>invs.find(i=>i.id===$("#rInv").value);
+
+/* events */
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+  switch(a){
+  case"nav":show(b.dataset.v);break;
+  case"menu":$("#side").classList.toggle("open");break;
+  case"mclose":$("#modal").classList.remove("on");break;
+  case"bell":modal("Notifications",notes.length?notes.map(n=>'<div class="row"><span class="note">'+n.t.slice(11,19)+"</span><span>"+esc(n.m)+"</span></div>").join(""):'<div class="empty">No notifications this session.</div>');break;
+  case"gsearch":gsearch();break;
+  case"run":exec(id);break;
+  case"rerun":show(id);exec(id,b.dataset.q);break;
+  case"save":{const r=lastRes[id];if(r)addFinding({module:id,summary:r.summary,status:r.status,rows:r.rows,sources:r.sources});break}
+  case"copy":{const r=lastRes[id];try{await navigator.clipboard.writeText(Object.entries(r.rows).map(([k,v])=>k+": "+[].concat(v).join("; ")).join("\n"));toast("Copied")}catch{toast("Clipboard blocked by the browser")}break}
+  case"plot":{const r=lastRes[id];if(r.geo){show("map");toast("Marker added (approximate area)");map&&map.setView([r.geo[0],r.geo[1]],6)}break}
+  case"apicheck":apiCheck();break;
+  case"cload":loadCams();break;
+  case"cmore":camLimit+=24;drawCam();break;
+  case"fav":favs=favs.includes(id)?favs.filter(x=>x!==id):[...favs,id];store.set("favs",favs);drawCam();break;
+  case"cmap":{const c=cams.slice(0,200);if(!c.length)return toast("Load a live source first");c.forEach(x=>mark(x.lat,x.lng,x.name,"cctv"));show("map");break}
+  case"msearch":try{const g=await geocode($("#mQ").value.trim());mark(g.lat,g.lng,g.name,"search");map.setView([g.lat,g.lng],8);log("map",$("#mQ").value)}catch(x){toast(x.message)}break;
+  case"mclear":pins=[];layer&&layer.clearLayers();toast("Markers cleared");break;
+  case"capture":{const v=$("#gVid");if(!v)break;const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;if(!c.width)return toast("Video is not ready yet");c.getContext("2d").drawImage(v,0,0);const old=$("#gMedia canvas");old&&old.remove();$("#gMedia").append(c);toast("Frame captured at "+v.currentTime.toFixed(1)+"s");break}
+  case"gsave":{const g=gData();if(!g.country&&!g.city)return toast("Enter at least a candidate country or city");addFinding({module:"geoint",summary:[g.land,g.city,g.country].filter(Boolean).join(", "),status:"estimated",rows:{"Candidate country":g.country,"Candidate city or region":g.city,"Public landmark":g.land,"Visible clues":g.clues,"Reasoning":g.notes,"Analyst confidence":g.conf,"Status":"Unverified analyst hypothesis"},sources:[]});log("geoint",g.city||g.country);break}
+  case"gmap":{const g=gData(),q=[g.land,g.city,g.country].filter(Boolean).join(", ");if(!q)return toast("Enter a location first");try{const r=await geocode(q);show("map");mark(r.lat,r.lng,"Candidate: "+q,"geoint");map.setView([r.lat,r.lng],8)}catch(x){toast(x.message)}break}
+  case"wnew":{const n=$("#wName").value.trim();if(!n)return toast("Enter a name");invs.unshift({id:uid(),name:n,created:now(),notes:"",findings:[]});active=invs[0].id;store.set("inv",invs);store.set("active",active);$("#wName").value="";drawWs();break}
+  case"wact":active=id;store.set("active",id);drawWs();break;
+  case"wdel":if(confirm("Delete this investigation?")){invs=invs.filter(i=>i.id!==id);if(active===id)active=null;store.set("inv",invs);store.set("active",active);drawWs()}break;
+  case"wexp":dl("investigation.json","application/json",JSON.stringify(invs.find(i=>i.id===id),null,2));break;
+  case"fdel":{const i=invs.find(x=>x.id===id);i.findings=i.findings.filter(f=>f.id!==b.dataset.f);store.set("inv",invs);drawWs();break}
+  case"rtxt":case"rjson":case"rhtml":case"rcopy":{const i=pickInv();if(!i)return toast("Create an investigation first");
+    const txt=repTXT(i);$("#rPrev").textContent=txt;
+    if(a==="rtxt")dl("report.txt","text/plain",txt);
+    if(a==="rjson")dl("report.json","application/json",JSON.stringify({generated:now(),investigation:i,history:hist.slice(0,30)},null,2));
+    if(a==="rhtml")dl("report.html","text/html",repHTML(i));
+    if(a==="rcopy"){try{await navigator.clipboard.writeText(txt);toast("Copied")}catch{toast("Clipboard blocked by the browser")}}break}
+  case"ssave":store.set("vision",$("#sVision").value.trim());toast("Saved. No vision analysis is wired up in this version.");break;
+  case"clrhist":hist=[];store.set("hist",hist);toast("History cleared");break;
+  case"clrall":if(confirm("Delete all NEXUS-OSINT data in this browser?")){Object.keys(localStorage).filter(k=>k.startsWith("nx_")).forEach(k=>localStorage.removeItem(k));invs=[];hist=[];favs=[];active=null;toast("All local data deleted");show("dashboard")}break}
+});
+document.addEventListener("input",e=>{
+  const id=e.target.dataset.actNote;if(id){const i=invs.find(x=>x.id===id);i.notes=e.target.value;store.set("inv",invs)}
+  if(["cQ","cCat","cFav"].includes(e.target.id))drawCam()});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"){const t=e.target;if(t.id==="gs")gsearch();else if(t.id&&t.id.startsWith("in-"))exec(t.id.slice(3));else if(t.id==="mQ")document.querySelector('[data-act=msearch]').click()}if(e.key==="Escape")$("#modal").classList.remove("on")});
+function gsearch(){const v=$("#gs").value.trim();if(!v)return toast("Type something to search");
+  const k=V4.test(v)||isV6(v)?"ip":/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)?"email":/^\+?[\d\s().-]{7,}$/.test(v)&&/\d{7}/.test(v.replace(/\D/g,""))?"phone":DOM.test(v)?"domain":"username";
+  show(k);exec(k,v)}
+$("#sTheme").value=store.get("theme","dark");document.documentElement.dataset.theme=$("#sTheme").value;
+$("#sTheme").addEventListener("change",e=>{document.documentElement.dataset.theme=e.target.value;store.set("theme",e.target.value)});
+$("#sVision").value=store.get("vision","");
+show("dashboard");
+</script>
+</body>
+</html>
